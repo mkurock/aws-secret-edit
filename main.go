@@ -17,9 +17,14 @@ type AWSResult struct {
 	CreatedDate   string   `json:"CreatedDate"`
 	VersionStages []string `json:"VersionStages"`
 }
+var TMP_FILE_NAME = ".aws-secret-tmp.json"
 
 func main() {
 	secretName := os.Args[1]
+  editor := os.Getenv("EDITOR")
+  if editor == "" {
+    editor = "vim"
+  }
 	fmt.Println("Secret name: ", secretName)
 	cmd := exec.Command("aws", "secretsmanager", "get-secret-value", "--secret-id", secretName)
 	var outb, errb bytes.Buffer
@@ -27,25 +32,27 @@ func main() {
 	cmd.Stderr = &errb
   err := cmd.Run()
   if err != nil {
-    panic(err)
+    fmt.Printf("%s", errb.String())
+    os.Exit(1)
   }
 	var result AWSResult
 	json.Unmarshal(outb.Bytes(), &result)
 	var s interface{}
 	json.Unmarshal([]byte(result.SecretString), &s)
 	pp, _ := json.MarshalIndent(s, "", "  ")
-	os.WriteFile(".aws-secret-tmp", pp, 0644)
+	os.WriteFile(TMP_FILE_NAME, pp, 0644)
   var newSecret string
   for {
-    cmd = exec.Command("vim", ".aws-secret-tmp")
+    cmd = exec.Command(editor, TMP_FILE_NAME)
     cmd.Stdin = os.Stdin
     cmd.Stdout = os.Stdout
     cmd.Stderr = os.Stderr
     err = cmd.Run()
     if err != nil {
+      fmt.Println("Error opening editor")
       panic(err)
     }
-    content, err := ioutil.ReadFile(".aws-secret-tmp")
+    content, err := ioutil.ReadFile(TMP_FILE_NAME)
     if err != nil {
       fmt.Println("Cannot read tmp file")
     }
@@ -62,7 +69,7 @@ func main() {
     }
 
     newSecret = string(content)
-    os.Remove(".aws-secret-tmp")
+    os.Remove(TMP_FILE_NAME)
     break
   }
 
