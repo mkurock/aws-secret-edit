@@ -28,6 +28,7 @@ type model struct {
 	phase             string
 	message           string
 	secretValueBuffer string
+	beforeValue       string
 }
 
 func (m model) Init() tea.Cmd {
@@ -56,15 +57,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c":
 		case "q":
-			return m, tea.Quit
+			if m.phase == "confirmation" {
+				m.phase = "list"
+				m.message = ""
+				m.secretValueBuffer = ""
+				return m, nil
+			} else {
+				return m, tea.Quit
+			}
 		case "enter":
 			if m.phase == "error" {
 				return m, openEditor(m.selectedSecret, false)
 			} else if m.phase == "confirmation" {
 				return m, updateSecretCmd(m.selectedSecret, m.secretValueBuffer)
 			} else {
+
 				i, ok := m.list.SelectedItem().(item)
-				if ok {
+				if ok && !m.list.SettingFilter() {
 					m.selectedSecret = string(i)
 					return m, openEditor(m.selectedSecret, true)
 				}
@@ -82,24 +91,37 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			return m, tea.Quit
 		}
-		return m, checkSecretValid(m.selectedSecret)
+		if msg.beforeValue != "" {
+			m.beforeValue = msg.beforeValue
+		}
+		return m, checkSecretValid(m)
 	case editorResult:
 		if msg.error {
 			m.phase = "error"
 			m.message = msg.msg
+      return m, nil
 		} else {
-			m.phase = "confirmation"
-			m.message = msg.msg
-      m.secretValueBuffer = msg.value
+			if msg.changed {
+				m.phase = "confirmation"
+				m.message = msg.msg
+				m.secretValueBuffer = msg.value
+			} else {
+				m.phase = "list"
+				m.secretValueBuffer = ""
+			}
 		}
 		return m, nil
 	case secretUpdated:
 		if msg.err == nil {
-			return m, tea.Quit
+			m.phase = "list"
+			m.message = ""
+			m.secretValueBuffer = ""
+			return m, nil
 		} else {
 			m.phase = "error"
 			m.message = fmt.Sprintf("Secret updated failed\n%v", msg.err)
-			return m, nil
+      fmt.Println(m.message)
+			return m, tea.Quit
 		}
 	}
 	var cmd tea.Cmd
@@ -111,7 +133,7 @@ func Run(secretName string) {
 	l := list.New([]list.Item{}, itemDelegate{}, 20, 15)
 	l.Title = "Select a secret you want to edit"
 	l.SetShowStatusBar(false)
-	l.SetFilteringEnabled(false)
+	l.SetFilteringEnabled(true)
 	l.Styles.Title = lipgloss.NewStyle().Foreground(lipgloss.Color("#00ff00"))
 	p := tea.NewProgram(initialModel(l, secretName))
 	if err := p.Start(); err != nil {

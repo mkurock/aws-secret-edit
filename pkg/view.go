@@ -18,7 +18,7 @@ type itemDelegate struct{}
 
 type item string
 
-func (i item) FilterValue() string { return "" }
+func (i item) FilterValue() string { return string(i) }
 
 func (d itemDelegate) Height() int                               { return 1 }
 func (d itemDelegate) Spacing() int                              { return 0 }
