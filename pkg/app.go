@@ -63,7 +63,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.secretValueBuffer = ""
 				return m, nil
 			} else {
-				return m, tea.Quit
+				if m.list.FilterState() != list.Filtering {
+					return m, tea.Quit
+				}
 			}
 		case "enter":
 			if m.phase == "error" {
@@ -99,7 +101,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.error {
 			m.phase = "error"
 			m.message = msg.msg
-      return m, nil
+			return m, nil
 		} else {
 			if msg.changed {
 				m.phase = "confirmation"
@@ -120,7 +122,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.phase = "error"
 			m.message = fmt.Sprintf("Secret updated failed\n%v", msg.err)
-      fmt.Println(m.message)
+			fmt.Println(m.message)
 			return m, tea.Quit
 		}
 	}

@@ -41,15 +41,22 @@ func openEditor(secretName string, loadSecret bool) tea.Cmd {
 		cmd.Stderr = &errb
 		err := cmd.Run()
 		if err != nil {
-			os.Exit(1)
-		}
-		var result awsResult
-		json.Unmarshal(outb.Bytes(), &result)
-		var s interface{}
-		json.Unmarshal([]byte(result.SecretString), &s)
-		pp, _ := json.MarshalIndent(s, "", "  ")
-		os.WriteFile(TMP_FILE_NAME, pp, 0644)
-		beforeValue = string(pp)
+      os.WriteFile(TMP_FILE_NAME, []byte(""), 0644);
+      fmt.Printf("%s", errb.String());
+		} else {
+      var result awsResult
+      err = json.Unmarshal(outb.Bytes(), &result)
+      if err != nil {
+        os.WriteFile(TMP_FILE_NAME, outb.Bytes(), 0644);
+        beforeValue = outb.String();
+      } else {
+        var s interface{}
+        json.Unmarshal([]byte(result.SecretString), &s)
+        pp, _ := json.MarshalIndent(s, "", "  ")
+        os.WriteFile(TMP_FILE_NAME, pp, 0644)
+        beforeValue = string(pp)
+      }
+    }
 	}
 	// var newSecret string
 	cmd := exec.Command(editor, TMP_FILE_NAME)
